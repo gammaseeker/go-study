@@ -23,34 +23,30 @@ func main() {
 	//const MAX_ROWS int32 = 250000000 // The real max rows value
 	const MAX_ROWS int32 = 5 // For testing purposes
 
-	//inputList := [4]string {"test1.csv", "test2.csv", "test3.csv", "test4.csv"}
-	inputList := [2]string {"test1.csv", "test2.csv"}
+	inputList := [4]string {"test1.csv", "test2.csv", "test3.csv", "test4.csv"}
+	//inputList := [2]string {"test1.csv", "test2.csv"}
 
 	var source *os.File
 	outputCtr := 1
 	outputFilename := "./output" + strconv.Itoa(outputCtr) + ".csv"
 	output := writeFile(outputFilename)
 
-	var filePosition int64 = 0
-	var middleOfFile bool = false
+	//var offset int32 = 0
 	i := 0
+	rowIndex := int32(0)
 	for i < len(inputList) {
-		fmt.Printf("input: %s\n", inputList[i])
+		fmt.Printf("---------input: %s ---------------\n", inputList[i])
 		source = readFile(inputList[i])
 
 		numRowsOutput := getNumRows(outputFilename)
-		fmt.Printf("numRowsOutput: %d\n", numRowsOutput)
-
 		var linesRemaining int32 = MAX_ROWS - numRowsOutput
-		fmt.Printf("linesRemaining: %d\n", linesRemaining)
 
 		writeableLines := linesRemaining - 1 // Reserve 1 line for ending new line
 		fmt.Printf("writeableLines: %d\n", writeableLines)
 
 		numRowsSource := getNumRows(inputList[i])
-		fmt.Printf("numRowsSource: %d\n", numRowsSource)
 
-		if numRowsSource <= writeableLines && !middleOfFile{
+		if numRowsSource <= writeableLines && rowIndex == int32(0) {
 			n, err := io.Copy(output, source)
 			if err != nil {
 				fmt.Printf("Failed to append %s to %s: %s", inputList[i], outputFilename, err)
@@ -59,26 +55,45 @@ func main() {
 			source.Close()
 			i++
 		} else {
-			// WIP This section of code is buggy
 			// copy a certain amount
-			offset := copyNRows(source, output, writeableLines, filePosition)
-			var err error
-			filePosition, err = source.Seek(offset, 1)
+			csvReader := csv.NewReader(source)
+			rows, err := csvReader.ReadAll() // Whole file is loaded into memory
 			if err != nil {
-				fmt.Printf("Error seeking: %s", err)
+				fmt.Print(err)
 			}
-			middleOfFile = true
-			numRowsOutput = getNumRows(outputFilename)
-			linesRemaining = MAX_ROWS - numRowsOutput
-			writeableLines = linesRemaining - 1
-			if writeableLines <= 0 {
-				output.Close()
+			fmt.Print(rows)
+
+			j := writeableLines
+			for rowIndex < int32(len(rows)) && j > 0 { 
+				fmt.Println("rowIndex: ", rowIndex)
+				csv := strings.Join(rows[rowIndex][:], ",") + "\n"
+				row := strings.NewReader(csv)
+				n, err := io.Copy(output, row)
+				if err != nil {
+					fmt.Printf("Failed to append: %s", err)
+				}
+				fmt.Printf("wrote %d bytes\n", n)
+				rowIndex++
+				j--
 			}
 
-			// create new outputfile, then retry to copy source file
-			outputCtr++
-			outputFilename = "./output" + strconv.Itoa(outputCtr) + ".csv"
-			output = writeFile(outputFilename)
+			if rowIndex < int32(len(rows)) {
+				// output is out of writable lines
+				output.Close()
+
+				// create new outputfile, then continue to copy source file
+				// Need to compute offset
+				outputCtr++
+				outputFilename = "./output" + strconv.Itoa(outputCtr) + ".csv"
+				output = writeFile(outputFilename)
+
+			} else if j >= 0 {
+				// finished processing input
+				source.Close()
+				rowIndex = int32(0)
+				i++
+			}
+			//copyNRows(rows, output, writeableLines, offset)
 		}
 	}
 }
@@ -116,9 +131,11 @@ func getNumRows(fileName string) (int32) {
 	return int32(lineCount)
 }
 
-func copyNRows(source io.Reader, destination io.Writer, n int32, currentPosition int64) (int64) {
-	csvReader := csv.NewReader(source)
-	for i := int32(0); i < n; i++ { 
+func copyNRows(rows [][]string, destination io.Writer, writeableLines int32, offset int32) {
+	
+	// Loops ends at either writeableLines or EOF source
+	for i := int32(0); i < writeableLines; i++ { 
+		/*
 		row, err := csvReader.Read()
 		if err == io.EOF {
 			fmt.Println("EOF reached. Stopping")
@@ -127,15 +144,13 @@ func copyNRows(source io.Reader, destination io.Writer, n int32, currentPosition
 		if err != nil {
 			fmt.Printf("Error reading: %s", err)
 		}
-
-		csv := strings.Join(row[:], ",") + "\n"
-		reader := strings.NewReader(csv)
-		n, err := io.Copy(destination, reader)
+		*/
+		csv := strings.Join(rows[i][:], ",") + "\n"
+		row := strings.NewReader(csv)
+		n, err := io.Copy(destination, row)
 		if err != nil {
 			fmt.Printf("Failed to append: %s", err)
 		}
 		fmt.Printf("wrote %d bytes\n", n)
 	}
-	offset := csvReader.InputOffset() // Gives us beginning of next row
-	return offset
 }
