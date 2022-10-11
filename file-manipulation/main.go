@@ -21,42 +21,58 @@ func main() {
 	*/
 
 	//const MAX_ROWS int32 = 250000000 // The real max rows value
-	const MAX_ROWS int32 = 7 // For testing purposes
+	const MAX_ROWS int32 = 5 // For testing purposes
 
-	inputList := [4]string {"test1.csv", "test2.csv", "test3.csv", "test4.csv"}
-	//inputList := [2]string {"test1.csv", "test2.csv"}
+	//inputList := [4]string {"test1.csv", "test2.csv", "test3.csv", "test4.csv"}
+	inputList := [2]string {"test1.csv", "test2.csv"}
 
 	var source *os.File
 	outputCtr := 1
 	outputFilename := "./output" + strconv.Itoa(outputCtr) + ".csv"
 	output := writeFile(outputFilename)
 
+	var filePosition int64 = 0
+	var middleOfFile bool = false
 	i := 0
 	for i < len(inputList) {
-		fmt.Printf("input: %s", inputList[i])
+		fmt.Printf("input: %s\n", inputList[i])
 		source = readFile(inputList[i])
 
 		numRowsOutput := getNumRows(outputFilename)
-		fmt.Printf("numRowsOutput: %d", numRowsOutput)
-		var linesRemaining int32 = MAX_ROWS - numRowsOutput
-		fmt.Printf("linesRemaining: %d", linesRemaining)
+		fmt.Printf("numRowsOutput: %d\n", numRowsOutput)
 
-		numRowsSource := getNumRows(inputList[i])
-		fmt.Printf("numRowsSource: %d", numRowsSource)
+		var linesRemaining int32 = MAX_ROWS - numRowsOutput
+		fmt.Printf("linesRemaining: %d\n", linesRemaining)
 
 		writeableLines := linesRemaining - 1 // Reserve 1 line for ending new line
-		if numRowsSource <= writeableLines {
+		fmt.Printf("writeableLines: %d\n", writeableLines)
+
+		numRowsSource := getNumRows(inputList[i])
+		fmt.Printf("numRowsSource: %d\n", numRowsSource)
+
+		if numRowsSource <= writeableLines && !middleOfFile{
 			n, err := io.Copy(output, source)
 			if err != nil {
 				fmt.Printf("Failed to append %s to %s: %s", inputList[i], outputFilename, err)
 			}
-			fmt.Printf("wrote %d bytes", n)
+			fmt.Printf("wrote %d bytes\n", n)
 			source.Close()
 			i++
 		} else {
 			// copy a certain amount
-			copyNRows(source, output, writeableLines)
-			output.Close()
+			offset := copyNRows(source, output, writeableLines, filePosition)
+			var err error
+			filePosition, err = source.Seek(offset, 1)
+			if err != nil {
+				fmt.Printf("Error seeking: %s", err)
+			}
+			middleOfFile = true
+			numRowsOutput = getNumRows(outputFilename)
+			linesRemaining = MAX_ROWS - numRowsOutput
+			writeableLines = linesRemaining - 1
+			if writeableLines <= 0 {
+				output.Close()
+			}
 
 			// create new outputfile, then retry to copy source file
 			outputCtr++
@@ -91,7 +107,7 @@ func getNumRows(fileName string) (int32) {
 	}
 
 	cmdOutput := string(cmd[:])
-	lineCount, err := strconv.Atoi(strings.Fields(cmdOutput)[0]) // can Atoi return int32? what if cmdOutput is more than an int?
+	lineCount, err := strconv.Atoi(strings.Fields(cmdOutput)[0]) // TODO can Atoi return int32? what if cmdOutput is more than an int?
 	if err != nil {
 		fmt.Printf("%s", err)
 	}
@@ -99,18 +115,27 @@ func getNumRows(fileName string) (int32) {
 	return int32(lineCount)
 }
 
-func copyNRows(source *os.File, destination *os.File, n int32) {
+func copyNRows(source io.Reader, destination io.Writer, n int32, currentPosition int64) (int64) {
 	csvReader := csv.NewReader(source)
-	for i := int32(0); i < n; i++ {
-		rec, err := csvReader.Read()
+	var bytesWritten int64 = 0
+	for i := int32(0); i < n; i++ { 
+		row, err := csvReader.Read()
 		if err == io.EOF {
 			fmt.Println("EOF reached. Stopping")
 			break
 		}
 		if err != nil {
-
 			fmt.Printf("Error reading: %s", err)
 		}
-		fmt.Printf("%s", rec)
+
+		csv := strings.Join(row[:], ",") + "\n"
+		reader := strings.NewReader(csv)
+		n, err := io.Copy(destination, reader)
+		if err != nil {
+			fmt.Printf("Failed to append: %s", err)
+		}
+		bytesWritten += int64(n)
+		fmt.Printf("wrote %d bytes\n", n)
 	}
+	return bytesWritten // This will be the offset that seek will use to find the next position
 }
