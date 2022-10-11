@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
@@ -8,39 +9,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-func readFile(fileName string) (*os.File) {
-	file, err := os.Open(fileName)
-	if err != nil {
-		fmt.Println("Error opening %s: %s", fileName, err)
-		return nil
-	}
-	return file
-}
-
-func writeFile(fileName string) (*os.File) {
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0664)
-	if err != nil {
-		fmt.Println("Error opening output file: %s", err)
-		return nil
-	}
-	return file
-}
-
-func getNumRows(fileName string) (int32) {
-	// Gets line count of output file
-	cmd, err := exec.Command("wc", "-l", fileName).Output()
-	if err != nil {
-		fmt.Println("%s", err)
-	}
-	cmdOutput := string(cmd[:])
-	lineCount, err := strconv.Atoi(strings.Fields(cmdOutput)[0]) // can Atoi return int32? what if cmdOutput is more than an int?
-	if err != nil {
-		fmt.Println("%s", err)
-	}
-	fmt.Println(lineCount)
-	return int32(lineCount)
-}
 
 func main() {
 	/*
@@ -52,87 +20,97 @@ func main() {
 		6. Else, copy what you can and remember location in source file for next output file then close output file
 	*/
 
-	output := writeFile("./output.csv")
-	defer output.Close()
+	//const MAX_ROWS int32 = 250000000 // The real max rows value
+	const MAX_ROWS int32 = 7 // For testing purposes
 
-	source := readFile("./test1.csv")
-	defer source.Close()
+	inputList := [4]string {"test1.csv", "test2.csv", "test3.csv", "test4.csv"}
+	//inputList := [2]string {"test1.csv", "test2.csv"}
 
-	numRowsOutput := getNumRows("./output.csv")
-	const MAX_ROWS int32 = 25000000
-	var linesRemaining int32 = MAX_ROWS - numRowsOutput
-	fmt.Println(linesRemaining)
+	var source *os.File
+	outputCtr := 1
+	outputFilename := "./output" + strconv.Itoa(outputCtr) + ".csv"
+	output := writeFile(outputFilename)
 
-	numRowsSource := getNumRows("./test1.csv")
-	if numRowsSource < linesRemaining {
-		n, err := io.Copy(output, source)
-		if err != nil {
-			fmt.Println("Failed to append test.csv to output: %s", err)
+	i := 0
+	for i < len(inputList) {
+		fmt.Printf("input: %s", inputList[i])
+		source = readFile(inputList[i])
+
+		numRowsOutput := getNumRows(outputFilename)
+		fmt.Printf("numRowsOutput: %d", numRowsOutput)
+		var linesRemaining int32 = MAX_ROWS - numRowsOutput
+		fmt.Printf("linesRemaining: %d", linesRemaining)
+
+		numRowsSource := getNumRows(inputList[i])
+		fmt.Printf("numRowsSource: %d", numRowsSource)
+
+		writeableLines := linesRemaining - 1 // Reserve 1 line for ending new line
+		if numRowsSource <= writeableLines {
+			n, err := io.Copy(output, source)
+			if err != nil {
+				fmt.Printf("Failed to append %s to %s: %s", inputList[i], outputFilename, err)
+			}
+			fmt.Printf("wrote %d bytes", n)
+			source.Close()
+			i++
+		} else {
+			// copy a certain amount
+			copyNRows(source, output, writeableLines)
+			output.Close()
+
+			// create new outputfile, then retry to copy source file
+			outputCtr++
+			outputFilename = "./output" + strconv.Itoa(outputCtr) + ".csv"
+			output = writeFile(outputFilename)
 		}
-		fmt.Println("wrote %d bytes", n)
 	}
-
-	source = readFile("./test2.csv")
-
-	numRowsOutput = getNumRows("./output.csv")
-	linesRemaining = MAX_ROWS - numRowsOutput
-	fmt.Println(linesRemaining)
-
-	numRowsSource = getNumRows("./test2.csv")
-	if numRowsSource < linesRemaining {
-		n, err := io.Copy(output, source)
-		if err != nil {
-			fmt.Println("Failed to append test.csv to output: %s", err)
-		}
-		fmt.Println("wrote %d bytes", n)
-	}
-
-
-	/*
-
-
-	n, err := io.Copy(out, file1)
-	if err != nil {
-		fmt.Println("Failed to append test.csv to output: %s", err)
-	}
-	fmt.Println("wrote %d bytes", n)
-
-	_, err = out.WriteString("\n")
-	if err != nil {
-		fmt.Println("Failed to write new line: %s", err)
-	}
-	n, err = io.Copy(out, file2)
-	if err != nil {
-		fmt.Println("Failed to append test2.csv to output: %s", err)
-	}
-	fmt.Println("wrote %d bytes", n)
-
-	file1.Close()
-	file2.Close()
-	out.Close()
-	*/
-
 }
 
-/*
-func readFile() {
-	filePath := "./test.csv"
-	csvFile, err := os.Open(filePath)
+func readFile(fileName string) (*os.File) {
+	file, err := os.Open(fileName)
 	if err != nil {
-		fmt.Println("Error with opening file: %s", err)
+		fmt.Printf("Error opening %s: %s", fileName, err)
+		return nil
+	}
+	return file
+}
+
+func writeFile(fileName string) (*os.File) {
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0664)
+	if err != nil {
+		fmt.Printf("Error opening output file: %s", err)
+		return nil
+	}
+	return file
+}
+
+func getNumRows(fileName string) (int32) {
+	cmd, err := exec.Command("wc", "-l", fileName).Output()
+	if err != nil {
+		fmt.Printf("%s", err)
 	}
 
-	r := csv.NewReader(csvFile)
-	for {
-		record, err := r.Read()
+	cmdOutput := string(cmd[:])
+	lineCount, err := strconv.Atoi(strings.Fields(cmdOutput)[0]) // can Atoi return int32? what if cmdOutput is more than an int?
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
+	return int32(lineCount)
+}
+
+func copyNRows(source *os.File, destination *os.File, n int32) {
+	csvReader := csv.NewReader(source)
+	for i := int32(0); i < n; i++ {
+		rec, err := csvReader.Read()
 		if err == io.EOF {
 			fmt.Println("EOF reached. Stopping")
 			break
 		}
 		if err != nil {
-			fmt.Println("Error reading: %s", err)
+
+			fmt.Printf("Error reading: %s", err)
 		}
-		fmt.Println("%s", record)
+		fmt.Printf("%s", rec)
 	}
 }
-*/
