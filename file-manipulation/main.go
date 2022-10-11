@@ -59,6 +59,7 @@ func main() {
 			source.Close()
 			i++
 		} else {
+			// WIP This section of code is buggy
 			// copy a certain amount
 			offset := copyNRows(source, output, writeableLines, filePosition)
 			var err error
@@ -117,7 +118,6 @@ func getNumRows(fileName string) (int32) {
 
 func copyNRows(source io.Reader, destination io.Writer, n int32, currentPosition int64) (int64) {
 	csvReader := csv.NewReader(source)
-	var bytesWritten int64 = 0
 	for i := int32(0); i < n; i++ { 
 		row, err := csvReader.Read()
 		if err == io.EOF {
@@ -134,8 +134,8 @@ func copyNRows(source io.Reader, destination io.Writer, n int32, currentPosition
 		if err != nil {
 			fmt.Printf("Failed to append: %s", err)
 		}
-		bytesWritten += int64(n)
 		fmt.Printf("wrote %d bytes\n", n)
 	}
-	return bytesWritten // This will be the offset that seek will use to find the next position
+	offset := csvReader.InputOffset() // Gives us beginning of next row
+	return offset
 }
