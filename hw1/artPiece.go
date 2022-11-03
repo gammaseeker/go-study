@@ -16,12 +16,41 @@ type artPiece struct {
 
 type artPieces struct {
 	head *artPiece
+	len  int
 }
 
-func PrintList(list *artPieces) {
-	head := list.head
+func (a *artPieces) PrintList() {
+	head := a.head
 	for head != nil {
 		fmt.Printf("%+v\n", head)
 		head = head.next
+	}
+}
+
+func (a *artPieces) Insert(id int, artType string,
+	artName string, artistName string, price int) {
+	newArt := artPiece{
+		id:         id,
+		artType:    artType,
+		artName:    artName,
+		artistName: artistName,
+		price:      price,
+		next:       nil,
+	}
+
+	if a.len == 0 {
+		a.head = &newArt
+		a.len++
+		return
+	}
+
+	curr := a.head
+	for i := 0; i < a.len; i++ {
+		if curr.next == nil {
+			curr.next = &newArt
+			a.len++
+			return
+		}
+		curr = curr.next
 	}
 }
