@@ -86,7 +86,6 @@ func main() {
 				outputCtr++
 				outputFilename = "./output" + strconv.Itoa(outputCtr) + ".csv"
 				output = writeFile(outputFilename)
-
 			} else if j >= 0 {
 				// finished processing input
 				source.Close()
