@@ -24,9 +24,17 @@ func main() {
 	fmt.Println(cards)
 
 	myDeck := newDeck()
+	fmt.Println(myDeck.toString())
 	hand, remainingDeck := deal(myDeck, 2)
 	hand.print()
 	remainingDeck.print()
+
+	/*
+		Byte slice conversion. Byte slices are just strings with chars represented in their ascii form
+
+		greeting := "Hi there!"
+		fmt.Println([]byte(greeting))
+	*/
 }
 
 func newCard() string {

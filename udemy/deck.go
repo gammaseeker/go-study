@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Create a new type of 'deck'
 // which is a slice of strings
@@ -35,12 +38,17 @@ func (d deck) print() {
 	}
 }
 
-func (d deck) shuffle() {
-
-}
-
 func deal(d deck, handSize int) (deck, deck) {
 	return d[:handSize], d[handSize:]
+}
+
+func (d deck) toString() string {
+	// []string(d) converts from type deck to string slice
+	return strings.Join([]string(d), ",")
+}
+
+func (d deck) shuffle() {
+
 }
 
 func (d deck) saveToFile() {
