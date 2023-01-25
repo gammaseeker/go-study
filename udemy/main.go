@@ -25,6 +25,7 @@ func main() {
 
 	myDeck := newDeck()
 	fmt.Println(myDeck.toString())
+	myDeck.saveToFile("my_cards")
 	hand, remainingDeck := deal(myDeck, 2)
 	hand.print()
 	remainingDeck.print()
