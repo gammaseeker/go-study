@@ -2,6 +2,10 @@ package main
 
 import "fmt"
 
+// slice, maps, channels, pointers, functions are passed in by reference
+// structs, int, float, string, bool are passed by value unless you use a pointer
+// Slices are like lists from python or arrayList from Java, an array is the traditional array
+
 // struct definition
 type contactInfo struct {
 	email   string
@@ -39,14 +43,24 @@ func main() {
 			zipCode: 12345,
 		},
 	}
+	/*
+		jimPointer := &jim // &variable provides memory address that variable is pointing at
+		// *pointer gives value that the mem addr is pointing at
+		jimPointer.updateName("Jimmy")
+	*/
+
+	// Golang also lets you use the value as a receiver for a pointer function
 	jim.updateName("Jimmy")
 	jim.print()
 
 }
 
-// This receiver is pass by reference bc we use a pointer
+// This receiver is pass by reference bc we use a pointer. This type of receiver function can be used
+// by the pointer or variable
 func (p *person) updateName(newFirstName string) {
-	p.firstName = newFirstName
+	// *type means we are working with a pointer to that type
+	(*p).firstName = newFirstName
+	// *p it means we want to manipulate the value the pointer is referencing
 }
 
 // This receiver is pass by value
