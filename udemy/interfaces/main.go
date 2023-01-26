@@ -2,8 +2,11 @@ package main
 
 import "fmt"
 
+// Cannot directly create a value of an interface. It is not a concrete type. It is not a generic type
+// Interfaces are 'implicit' don't need to explicitly say which type belongs to an interface
 type bot interface {
-	getGreeting() string
+	getGreeting() string // function signature should match where it is declared
+	// Can also nest interfaces within each other. Look at the ReadCloser interface on go docs
 }
 
 type englishBot struct{}
