@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sync"
+	"time"
 )
 
 /*
@@ -27,6 +29,26 @@ Scheduler runs one thread on each "logical" core.
 Channels are typed (if a channel is type string, it cannot share non-string data)
 */
 func main() {
+	//channelExample()
+	waitGroupExample()
+}
+
+func waitGroupExample() {
+	fmt.Println("Go WaitGroup tutorial")
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go myFunc(&wg)
+	wg.Wait()
+	fmt.Println("Finished executing my go program")
+}
+
+func myFunc(wg *sync.WaitGroup) {
+	time.Sleep(1 * time.Second)
+	fmt.Println("Finished Executing Goroutine")
+	wg.Done()
+}
+
+func channelExample() {
 	links := []string{
 		"http://google.com",
 		"http://reddit.com",
@@ -40,14 +62,14 @@ func main() {
 		// checkLink(link) without go routine, will cause main go routine to hang
 
 		// with go routine. Whenever a go routine hangs, the main GR will kick off a new child GR
-		go checkLink(link, c) 
+		go checkLink(link, c)
 	}
 
 	/*
-	for i := 0; i < len(links); i++ {
-		go checkLink(<-c, c)
-		//fmt.Println(<- c) // Blocking channel. Main GR will wait until channel gets data
-	}
+		for i := 0; i < len(links); i++ {
+			go checkLink(<-c, c)
+			//fmt.Println(<- c) // Blocking channel. Main GR will wait until channel gets data
+		}
 	*/
 
 	// Check status until eternity
