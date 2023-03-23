@@ -30,15 +30,44 @@ Channels are typed (if a channel is type string, it cannot share non-string data
 */
 func main() {
 	//channelExample()
-	waitGroupExample()
+	//waitGroupExample()
+
+	fmt.Println("Multiple write to channel")
+	c := make(chan string)
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go channelExperiment(c, &wg)
+	wg.Wait()
+}
+
+func channelExperiment(c chan string, wg *sync.WaitGroup) {
+	c <- sendDataA()
+	fmt.Println(<-c)
+
+	c <- sendDataB()
+	fmt.Println(<-c)
+
+	wg.Done()
+}
+
+func sendDataA() string {
+	return "A"
+}
+
+func sendDataB() string {
+	return "B"
 }
 
 func waitGroupExample() {
 	fmt.Println("Go WaitGroup tutorial")
 	var wg sync.WaitGroup
+
 	wg.Add(1)
 	go myFunc(&wg)
 	wg.Wait()
+
 	fmt.Println("Finished executing my go program")
 }
 
